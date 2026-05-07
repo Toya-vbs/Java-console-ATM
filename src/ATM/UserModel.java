@@ -15,7 +15,7 @@ class User {
     private String name;
 
 
-    private static long uidAllocater=0;
+    private static long uidAllocator=0;
 
     private long uid;
 
@@ -28,8 +28,8 @@ class User {
         //根据密码生成哈希值
         changePasswordInModel(password);
 
-        uid=uidAllocater;
-        uidAllocater+=1;
+        uid=uidAllocator;
+        uidAllocator+=1;
     }
 
     //getter和setter
@@ -67,14 +67,14 @@ class User {
         this.balance = balance;
     }
 
-    public static long getUidAllocater() {
-        return uidAllocater;
+    public static long getUidAllocator() {
+        return uidAllocator;
     }
 
 
     //uidAllocater的setter应该仅在读取文件中uidAllocater时使用
-    public static void setUidAllocater(long uidAllocater) {
-        User.uidAllocater = uidAllocater;
+    public static void setUidAllocator(long uidAllocator) {
+        User.uidAllocator = uidAllocator;
     }
 
     public long getUid() {
