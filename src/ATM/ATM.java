@@ -15,7 +15,7 @@ public class ATM {
     //登陆前的一级菜单
     public void menu1(){
         while(true){
-            System.out.println("欢迎\n1：Login\n2：Create a new user\n3：Exit");
+            System.out.println("========欢迎========\n1：Login\n2：Create a new user\n3：Exit");
             String code=sc.nextLine().replaceAll("\\s", "");
             if(code.equals("3")){
                 break;
@@ -56,6 +56,11 @@ public class ATM {
                         default -> System.out.println("用户创建失败，未知错误");
                     }
                     break;
+                case "debug":
+                    bank.setDebug(true);
+                    System.out.println("debug模式已开启");
+                    debugMenu();
+                    break;
                 default:
                     System.out.println("无效的输入");
             }
@@ -67,9 +72,11 @@ public class ATM {
     public void menu2(){
         while(true)
         {
-            System.out.println("用户下标："+bank.currentUserId+" \n请选择您要办理的业务:\n1: Change Password   2: Query Balance\n3: Withdrawal    4: Deposit\n5: Logout");
+            System.out.println("用户名："+bank.currentUser.getName()+"\nuid: "+bank.currentUser.getUid()+
+                    "\n请选择您要办理的业务:\n1: Change Password\n2: Query Balance\n3: Withdrawal\n4: Deposit\n5: Logout");
             String code=sc.nextLine().replaceAll("\\s", "");
             if(code.equals("5")){
+                System.out.println("登出成功");
                 break;
             }
             switch(code){
@@ -86,6 +93,46 @@ public class ATM {
             }
         }
 
+    }
+
+    private void debugMenu(){
+        while(true)
+        {
+            System.out.println("========调试模式========\n请选择:\n1: get the number of users\n2: list all users\n3. exit");
+            String code=sc.nextLine().replaceAll("\\s", "");
+            if(code.equals("3")){
+                bank.setDebug(false);
+                System.out.println("已退出调试模式");
+                break;
+            }
+            switch(code){
+                case "1":
+                    onGetTheNumberOfUsers();break;
+                case "2":
+                    onListAllUsers();break;
+                default:
+                    System.out.println("无效的输入");
+            }
+        }
+
+    }
+
+    //调试方法
+    public void onGetTheNumberOfUsers(){
+        int num=bank.getTheNumberOfUsers();
+        if(num==Bank.ERROR_NOT_IN_DEBUG){
+            System.out.println("错误：当前不处于调试模式");
+            return;
+        }
+        System.out.println("当前共有 "+num+" 位用户\n");
+    }
+
+    public void onListAllUsers(){
+        if(bank.listAllUsers()==Bank.ERROR_NOT_IN_DEBUG){
+            System.out.println("错误：当前不处于调试模式");
+            return;
+        }
+        return;
     }
 
     public void onChangePassword(){

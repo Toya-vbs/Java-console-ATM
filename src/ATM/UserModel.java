@@ -1,8 +1,7 @@
 package ATM;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 //一个用户的信息
 class User {
@@ -48,14 +47,19 @@ class User {
 
     //用于改密码
     public void changePasswordInModel(String newPassword){
-        //此处要写生成哈希值的算法
-        String newPasswordHashCode=newPassword;
-
-
-        setPasswordHashCode(newPasswordHashCode);
+        this.passwordHashCode=hashPassword(newPassword);
     }
-    //用于改密码
-    public void setPasswordHashCode(String newPasswordHashCode) {this.passwordHashCode = newPasswordHashCode;}
+
+    //根据密码生成哈希值
+    private String hashPassword(String passwordInput){
+        //此处要写生成哈希值的算法
+        return passwordInput;
+    }
+
+    //用于匹配密码，匹配成功返回true，失败返回false
+    public boolean matchPassword(String passwordInput){
+        return hashPassword(passwordInput).equals(passwordHashCode);
+    }
 
     public long getBalance() {return balance;}
 
@@ -82,14 +86,21 @@ class User {
 //用户信息的集合
 public class UserModel {
 
-    private List<User> users;
+    // Key 是用户名 (String)，Value 是用户对象 (User)
+    private Map<String, User> userMap = new ConcurrentHashMap<>();//使用多线程安全的ConcurrentHashMap
 
-    public UserModel(){
-        users=new ArrayList<User>();
+    //userMap的getter和setter
+    public Map<String, User> getUserMap() {
+        return userMap;
     }
-    public List<User> getUsers() {
-        return users;
+
+    public void setUserMap(Map<String, User> userMap) {
+        this.userMap = userMap;
     }
+
+
+
+
 
 
 

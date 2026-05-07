@@ -1,5 +1,7 @@
 package ATM;
 
+import java.util.Map;
+
 //这是MVC架构中的Control控制层，有所有操作数据的方法逻辑
 public class Bank {
     //定义常量错误码
@@ -11,26 +13,48 @@ public class Bank {
     public static final int ERROR_USER_NOT_LOGIN = 4;    // 用户未登录
     public static final int ERROR_AMOUNT_INVALID = 5;    // 金额非法
     public static final int ERROR_BALANCE_INSUFFICIENT = 6;// 余额不足
+    public static final int ERROR_NOT_IN_DEBUG = -2;//不处于调试模式
 
 
 
+    private  boolean isDebug = false;//是否处于调试模式的状态位，true则处于调试模式
+    public void setDebug(boolean debug) {
+        isDebug = debug;
+    }
     //用户集合
     private UserModel userModel;
 
-    //当前用户在数组的下标，用于定位用户，不是用户uid
-    int currentUserId=-1;
+    //当前用户
+    User currentUser=null;
 
     public Bank(){
         userModel=new UserModel();
     }
 
+    //调试的方法
+    public int getTheNumberOfUsers() {
+        return isDebug?userModel.getUserMap().size():ERROR_NOT_IN_DEBUG;
+    }
+
+    public int listAllUsers(){
+        if(!isDebug){
+            return ERROR_NOT_IN_DEBUG;
+        }
+        for (Map.Entry<String, User> entry : userModel.getUserMap().entrySet()) {
+            String key = entry.getKey();
+            User value = entry.getValue();
+            System.out.println("用户名：" + key + "       uid: " + value.getUid());
+        }
+
+        return SUCCESS;
+    }
 
     //创建新用户的方法，成功则返回0,失败返回各种错误码
-    public int createNewUser(String n,String password){
+    public int createNewUser(String name,String password){
         //先判空
-        if(n!=null && password!=null) {
-            if(findUserWithName(n)==-1){
-                userModel.getUsers().add(new User(n, password));
+        if(name!=null && password!=null) {
+            if(findUserByName(name)==null){
+                userModel.getUserMap().put(name,new User(name, password));
                 //System.out.println("创建成功");
                 return SUCCESS;
             }
@@ -48,15 +72,13 @@ public class Bank {
 
 
     //登录方法,成功则返回0,失败返回各种错误码
-    public int login(String n,String password){
+    public int login(String name,String password){
 
-        if(n!=null && password!=null) {
-            int id=findUserWithName(n);
-            if(id!=-1){
-
+        if(name!=null && password!=null) {
+            if(findUserByName(name)!=null){
                 //找到了该用户，匹配密码
-                if (password.equals(userModel.getUsers().get(id).getPasswordHashCode())) {
-                    currentUserId = id;
+                if (userModel.getUserMap().get(name).matchPassword(password)) {
+                    currentUser = userModel.getUserMap().get(name);
                     //System.out.println("登录成功");
                     return SUCCESS;
 
@@ -80,36 +102,28 @@ public class Bank {
     }
 
     public int changePassword(String newPassword){
-        if(newPassword!=null){
-            userModel.getUsers().get(currentUserId).changePasswordInModel(newPassword);
-            return SUCCESS;//修改成功
+        if(newPassword!=null) {
+            if (currentUser != null) {
+                currentUser.changePasswordInModel(newPassword);
+                return SUCCESS;//修改成功
+            }
+            return ERROR_USER_NOT_LOGIN;//修改失败,未登录
         }
-
-        return ERROR_UNKNOWN;//修改失败
+        return ERROR_UNKNOWN;//修改失败，未知错误
 
     }
 
 
-    //根据用户名查找用户是否存在，存在则返回数组下标，不存在则返回-1
-    public int findUserWithName(String n){
-        if(n!=null) {
-            for (int i = 0; i < userModel.getUsers().size(); i++) {
-                if (n.equals(userModel.getUsers().get(i).getName()) ) {
-                    return i;
-
-                }
-            }
-        }
-
-        return -1;
-
+    //根据用户名查找用户是否存在，存在则返回用户对象，不存在则返回空指针
+    public User findUserByName(String name){
+            return userModel.getUserMap().get(name);// O(1) 复杂度
     }
 
     //存钱，传入的参数以分为单位，把小数化成整数是view层的职责
     public int deposit(long money){
-        if(currentUserId!=-1){
+        if(currentUser!=null){
             if(money>0) {
-                userModel.getUsers().get(currentUserId).setBalance(userModel.getUsers().get(currentUserId).getBalance()+money);
+                currentUser.setBalance(currentUser.getBalance()+money);
                 //System.out.println("存钱成功");
                 return SUCCESS;
             }
@@ -122,10 +136,10 @@ public class Bank {
 
     //取钱
     public int withdrawal(long money){
-        if(currentUserId!=-1){
+        if(currentUser!=null){
             if(money>0) {
-                if(userModel.getUsers().get(currentUserId).getBalance()>=money) {
-                    userModel.getUsers().get(currentUserId).setBalance(userModel.getUsers().get(currentUserId).getBalance() - money);
+                if(currentUser.getBalance()>=money) {
+                    currentUser.setBalance(currentUser.getBalance() - money);
                     //System.out.println("取钱成功");
                     return SUCCESS;
                 }
@@ -142,9 +156,9 @@ public class Bank {
 
     //查询余额
     public long query() {
-        if (currentUserId != -1) {
+        if (currentUser != null) {
 
-            return userModel.getUsers().get(currentUserId).getBalance();
+            return currentUser.getBalance();
 
         }
 
