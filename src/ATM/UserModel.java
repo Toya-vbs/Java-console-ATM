@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 //一个用户的信息
 class User {
+
     //余额，初始为0,单位为分
     private long balance=0;
 
@@ -14,9 +15,10 @@ class User {
     //用户名
     private String name;
 
-
+    //分配uid的变量
     private static long uidAllocator=0;
 
+    //用户uid
     private long uid;
 
 
@@ -31,19 +33,6 @@ class User {
         uid=uidAllocator;
         uidAllocator+=1;
     }
-
-    //getter和setter
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPasswordHashCode() {return passwordHashCode;}
-
 
     //用于改密码
     public void changePasswordInModel(String newPassword){
@@ -60,6 +49,19 @@ class User {
     public boolean matchPassword(String passwordInput){
         return hashPassword(passwordInput).equals(passwordHashCode);
     }
+
+
+    //getter和setter
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPasswordHashCode() {return passwordHashCode;}
 
     public long getBalance() {return balance;}
 

@@ -5,15 +5,16 @@ import java.util.Map;
 //这是MVC架构中的Control控制层，有所有操作数据的方法逻辑
 public class Bank {
     //定义常量错误码
-    public static final int SUCCESS = 0;                 // 成功
-    public static final int ERROR_UNKNOWN = -1;          // 未知错误
-    public static final int ERROR_PASSWORD_WRONG = 1;    // 密码错误
-    public static final int ERROR_USERNAME_EXIST = 2;        // 用户名已存在
-    public static final int ERROR_USER_NOT_EXIST = 3;    // 用户不存在
-    public static final int ERROR_USER_NOT_LOGIN = 4;    // 用户未登录
-    public static final int ERROR_AMOUNT_INVALID = 5;    // 金额非法
-    public static final int ERROR_BALANCE_INSUFFICIENT = 6;// 余额不足
-    public static final int ERROR_NOT_IN_DEBUG = -2;//不处于调试模式
+    public static final int SUCCESS = 0;                        // 成功
+    public static final int ERROR_UNKNOWN = -1;                 // 未知错误
+    public static final int ERROR_PASSWORD_WRONG = 1;           // 密码错误
+    public static final int ERROR_USERNAME_EXIST = 2;           // 用户名已存在
+    public static final int ERROR_USER_NOT_EXIST = 3;           // 用户不存在
+    public static final int ERROR_USER_NOT_LOGIN = 4;           // 用户未登录
+    public static final int ERROR_AMOUNT_INVALID = 5;           // 金额非法
+    public static final int ERROR_BALANCE_INSUFFICIENT = 6;     // 余额不足
+    public static final int ERROR_BALANCE_OVERFLOW = 7;         //余额溢出
+    public static final int ERROR_NOT_IN_DEBUG = -2;            //不处于调试模式
 
 
 
@@ -123,7 +124,19 @@ public class Bank {
     public int deposit(long money){
         if(currentUser!=null){
             if(money>0) {
-                currentUser.setBalance(currentUser.getBalance()+money);
+                //需要判断本次存款是否会让余额溢出
+                long tempBalance;
+                try {
+                    // 先安全地相加
+                    tempBalance = Math.addExact(currentUser.getBalance(), money);
+                    // 如果走到这里，说明没有溢出
+                    //System.out.println("没有溢出，tempBalance = "+tempBalance);
+                } catch (ArithmeticException e) {
+                    //System.out.println("金额数值过大，超出系统支持范围。本次操作失败");
+                    return ERROR_BALANCE_OVERFLOW;
+                }
+
+                currentUser.setBalance(tempBalance);
                 //System.out.println("存钱成功");
                 return SUCCESS;
             }
