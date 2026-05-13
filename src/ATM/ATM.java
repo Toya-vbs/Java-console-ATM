@@ -341,6 +341,7 @@ public class ATM {
     public static void main(String[] args){
         ATM ccb=new ATM();
         ccb.menu1();
+        ccb.bank.shutdown();
         ccb.sc.close();//流资源使用完后需要手动释放
     }
 }

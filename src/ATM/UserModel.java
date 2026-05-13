@@ -13,6 +13,9 @@ class User {
     //余额，初始为0,单位为分
     private long balance=0;
 
+    //余额最大值
+    static final long MAX_BALANCE=Long.MAX_VALUE;
+
     //存储密码的哈希值，用SHA-256加密算法
     private String passwordHashCode;
 
