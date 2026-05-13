@@ -44,7 +44,7 @@ public class Bank {
         for (Map.Entry<String, User> entry : userModel.getUserMap().entrySet()) {
             String key = entry.getKey();
             User value = entry.getValue();
-            System.out.println("用户名：" + key + "       uid: " + value.getUid());
+            System.out.printf("用户名: %-30s   uid: %-20d%n", key , value.getUid());
         }
 
         return SUCCESS;
