@@ -1,5 +1,10 @@
 package ATM;
 
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.CipherOutputStream;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.*;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +58,7 @@ public class Bank {
                         //System.out.println("没有溢出，tempBalance = "+tempBalance);
                     } catch (ArithmeticException e) {
                         user.setBalance(User.MAX_BALANCE);
-                        System.out.println("金额数值过大，超出系统支持范围。加利息失败，余额将维持最大值");
+                        //System.out.println("金额数值过大，超出系统支持范围。加利息失败，余额将维持最大值");
                         continue;
                     }
 
@@ -61,7 +66,7 @@ public class Bank {
                 }
             }
 
-            System.out.println("已为所有用户增加5%利息");
+            //System.out.println("已为所有用户增加5%利息");
 
         },10,10, TimeUnit.SECONDS);//10秒后第一次执行，之后每10秒执行一次
     }
@@ -237,6 +242,74 @@ public class Bank {
         return -1;//这里不能用ERROR_USER_NOT_LOGIN,会和正常余额冲突
     }
 
+    //AES 要求密钥必须是 16 / 24 / 32 字节
+    private static final String KEY =
+            "1234567890123456";//定义密钥，16字节 = AES-128，此处为硬编码，实际开发不应这么做，反编译后会被看到
+
+    //保存model数据的方法，序列化 + AES加密
+    public void saveToFile() {
+        try {
+
+            SecretKeySpec key =
+                    new SecretKeySpec(KEY.getBytes(), "AES");
+
+            Cipher cipher =
+                    Cipher.getInstance("AES/ECB/PKCS5Padding");//ECB不安全，相同明文块会生成相同密文块，会泄露数据模式
+
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+
+            FileOutputStream fos =
+                    new FileOutputStream("users.dat");
+
+            CipherOutputStream cos =
+                    new CipherOutputStream(fos, cipher);
+
+            ObjectOutputStream oos =
+                    new ObjectOutputStream(cos);
+
+            oos.writeObject(userModel);
+
+            oos.close();//关闭最外层流，会自动级联关闭所有底层流
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    //读取model数据的方法，AES解密 + 反序列化
+    public void loadFromFile() {
+
+        try {
+
+            SecretKeySpec key =
+                    new SecretKeySpec(KEY.getBytes(), "AES");
+
+            Cipher cipher =
+                    Cipher.getInstance("AES/ECB/PKCS5Padding");
+
+            cipher.init(Cipher.DECRYPT_MODE, key);
+
+            FileInputStream fis =
+                    new FileInputStream("users.dat");
+
+            CipherInputStream cis =
+                    new CipherInputStream(fis, cipher);
+
+            ObjectInputStream ois =
+                    new ObjectInputStream(cis);
+
+            userModel = (UserModel) ois.readObject();
+
+            ois.close();//关闭最外层流，会自动级联关闭所有底层流
+
+        } catch (FileNotFoundException e) {
+
+            System.out.println("首次运行，无存档");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 
 }

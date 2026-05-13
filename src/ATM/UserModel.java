@@ -2,13 +2,15 @@ package ATM;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+import java.io.Serial;
+import java.io.Serializable;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 //一个用户的信息
-class User {
+class User implements Serializable {
 
     //余额，初始为0,单位为分
     private long balance=0;
@@ -123,7 +125,7 @@ class User {
 
 
 //用户信息的集合
-public class UserModel {
+public class UserModel implements Serializable{
 
     // Key 是用户名 (String)，Value 是用户对象 (User)
     private Map<String, User> userMap = new ConcurrentHashMap<>();//使用多线程安全的ConcurrentHashMap
@@ -137,7 +139,8 @@ public class UserModel {
         this.userMap = userMap;
     }
 
-
+    @Serial
+    private static final long serialVersionUID = 1L;//序列化版本号
 
 
 

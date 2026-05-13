@@ -10,6 +10,8 @@ public class ATM {
 
     public ATM(){
         bank=new Bank();
+
+        bank.loadFromFile();//ATM启动时读取数据
     }
 
     //登陆前的一级菜单
@@ -255,7 +257,7 @@ public class ATM {
         }
 
 
-        System.out.println("debug：整数部分："+integerPart+"小数部分"+decimalPart);
+        //System.out.println("debug：整数部分："+integerPart+"小数部分"+decimalPart);
 
         // ====================== 校验通过 ======================
         int state=bank.deposit(balanceIncrement);
@@ -325,7 +327,7 @@ public class ATM {
         }
 
 
-        System.out.println("debug：整数部分："+integerPart+"小数部分"+decimalPart);
+        //System.out.println("debug：整数部分："+integerPart+"小数部分"+decimalPart);
 
         // ====================== 校验通过 ======================
         int state=bank.withdrawal(withdrawMoney);
@@ -342,6 +344,7 @@ public class ATM {
         ATM ccb=new ATM();
         ccb.menu1();
         ccb.bank.shutdown();
+        ccb.bank.saveToFile();//ATM退出时保存
         ccb.sc.close();//流资源使用完后需要手动释放
     }
 }
