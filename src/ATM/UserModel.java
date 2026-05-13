@@ -1,5 +1,9 @@
 package ATM;
 
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,6 +15,9 @@ class User {
 
     //存储密码的哈希值，用SHA-256加密算法
     private String passwordHashCode;
+
+    //想要保证密码安全就要加盐
+    private byte[] salt;
 
     //用户名
     private String name;
@@ -27,27 +34,54 @@ class User {
     public User(String n,String password){
         name=n;
 
+        salt = generateSalt();
+
         //根据密码生成哈希值
         changePasswordInModel(password);
 
+        //如果是多线程创建用户，这个uid分配是不安全的
+        //但是本程序只有两个线程，一个操作，一个只加利息，因此没关系
         uid=uidAllocator;
         uidAllocator+=1;
     }
 
     //用于改密码
     public void changePasswordInModel(String newPassword){
-        this.passwordHashCode=hashPassword(newPassword);
+        this.passwordHashCode=hashPassword(newPassword,salt);
+    }
+
+    //生成salt
+    private byte[] generateSalt() {
+        byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        return salt;
     }
 
     //根据密码生成哈希值
-    private String hashPassword(String passwordInput){
-        //此处要写生成哈希值的算法
-        return passwordInput;
+    private String hashPassword(String passwordInput, byte[] salt){
+        try {
+            PBEKeySpec spec = new PBEKeySpec(
+                    passwordInput.toCharArray(),
+                    salt,
+                    65536,     // 迭代次数
+                    256        // 输出位数
+            );
+
+            SecretKeyFactory factory =
+                    SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+
+            byte[] hash = factory.generateSecret(spec).getEncoded();
+
+            return Base64.getEncoder().encodeToString(hash);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     //用于匹配密码，匹配成功返回true，失败返回false
     public boolean matchPassword(String passwordInput){
-        return hashPassword(passwordInput).equals(passwordHashCode);
+        return hashPassword(passwordInput,salt).equals(passwordHashCode);
     }
 
 

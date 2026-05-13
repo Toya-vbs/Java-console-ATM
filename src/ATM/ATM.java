@@ -46,8 +46,16 @@ public class ATM {
                 case "2":
                     System.out.print("输入用户名: ");
                     String newName=sc.nextLine();
+                    if (newName == null || newName.isBlank()) {
+                        System.out.println("用户名不能为空或全空格,本次操作失败");
+                        break;
+                    }
                     System.out.print("输入密码: ");
                     String newPassword=sc.nextLine();
+                    if (newPassword == null || newPassword.isBlank()) {
+                        System.out.println("密码不能为空或全空格,本次操作失败");
+                        break;
+                    }
                     switch(bank.createNewUser(newName,newPassword)){
                         case Bank.SUCCESS -> System.out.println("用户创建成功");
                         case Bank.ERROR_USERNAME_EXIST-> System.out.println("用户创建失败，该用户名已被占用");
@@ -135,6 +143,10 @@ public class ATM {
     public void onChangePassword(){
         System.out.print("输入新密码：");
         String password1=sc.nextLine();
+        if (password1 == null || password1.isBlank()) {
+            System.out.println("密码不能为空或全空格,本次操作失败");
+            return;
+        }
         System.out.print("再次输入以确认新密码：");
         String password2=sc.nextLine();
         if(!password2.equals(password1)){
