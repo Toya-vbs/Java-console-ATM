@@ -3,8 +3,11 @@ package ATM;
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -251,12 +254,22 @@ public class Bank {
         try {
 
             SecretKeySpec key =
-                    new SecretKeySpec(KEY.getBytes(), "AES");
-
+                    new SecretKeySpec(KEY.getBytes(StandardCharsets.UTF_8), "AES");//显式指定UTF-8编码，与平台无关。此外使用AES算法
+            //加密算法为对称加密AES，模式为CBC，填充方式为PKCS5Padding
             Cipher cipher =
-                    Cipher.getInstance("AES/ECB/PKCS5Padding");//ECB不安全，相同明文块会生成相同密文块，会泄露数据模式
+                    Cipher.getInstance("AES/CBC/PKCS5Padding");//CBC比ECB安全，但需要初始化向量IV
 
-            cipher.init(Cipher.ENCRYPT_MODE, key);
+            //生成IV
+            byte[] iv = new byte[16];
+
+            SecureRandom random = new SecureRandom();
+
+            random.nextBytes(iv);
+
+            IvParameterSpec ivSpec =
+                    new IvParameterSpec(iv);//IvParameterSpec 就是一个 IV 的包装类，作用是让 Cipher 能识别 IV
+            //初始化
+            cipher.init(Cipher.ENCRYPT_MODE, key,ivSpec);
 
             FileOutputStream fos =
                     new FileOutputStream("users.dat");
@@ -267,6 +280,9 @@ public class Bank {
             ObjectOutputStream oos =
                     new ObjectOutputStream(cos);
 
+            //必须把 IV 写入文件,因为解密也需要同一个 IV,但 IV 不需要保密。
+            //文件格式：[16字节IV][密文]
+            fos.write(iv);
             oos.writeObject(userModel);
 
             oos.close();//关闭最外层流，会自动级联关闭所有底层流
@@ -282,15 +298,24 @@ public class Bank {
         try {
 
             SecretKeySpec key =
-                    new SecretKeySpec(KEY.getBytes(), "AES");
+                    new SecretKeySpec(KEY.getBytes(StandardCharsets.UTF_8), "AES");//显式指定UTF-8编码，与平台无关。此外使用AES算法
 
             Cipher cipher =
-                    Cipher.getInstance("AES/ECB/PKCS5Padding");
-
-            cipher.init(Cipher.DECRYPT_MODE, key);
+                    Cipher.getInstance("AES/CBC/PKCS5Padding");//CBC比ECB安全，但需要初始化向量IV
 
             FileInputStream fis =
                     new FileInputStream("users.dat");
+
+            //先读取出IV
+            byte[] iv = new byte[16];
+
+            fis.read(iv);
+
+            IvParameterSpec ivSpec =
+                    new IvParameterSpec(iv);
+
+            //有了ivSpec后再初始化
+            cipher.init(Cipher.DECRYPT_MODE, key,ivSpec);
 
             CipherInputStream cis =
                     new CipherInputStream(fis, cipher);
