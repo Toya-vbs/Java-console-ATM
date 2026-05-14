@@ -24,8 +24,10 @@ public class Bank {
     public static final int ERROR_USER_NOT_LOGIN = 4;           // 用户未登录
     public static final int ERROR_AMOUNT_INVALID = 5;           // 金额非法
     public static final int ERROR_BALANCE_INSUFFICIENT = 6;     // 余额不足
-    public static final int ERROR_BALANCE_OVERFLOW = 7;         //余额溢出
-    public static final int ERROR_NOT_IN_DEBUG = -2;            //不处于调试模式
+    public static final int ERROR_BALANCE_OVERFLOW = 7;         // 余额溢出
+    public static final int ERROR_BALANCE_NOT_ZERO = 8;         // 余额不为0
+    public static final int ERROR_USER_DELETED = 9;             // 用户状态处于删除
+    public static final int ERROR_NOT_IN_DEBUG = -2;            // 不处于调试模式
 
     private  boolean isDebug = false;//是否处于调试模式的状态位，true则处于调试模式
     public void setDebug(boolean debug) {
@@ -49,6 +51,9 @@ public class Bank {
             for(User user : userModel.getUserMap().values()){
                 //对每个user的操作是互斥的，如果在对一个user加利息，那么就不能对这个user存钱或取钱
                 synchronized (user){
+                    if(user.getState()==User.USER_STATE_DELETED){
+                        continue;//用户已删除
+                    }
                     long oldBalance = user.getBalance();
 
                     long interest = oldBalance * 5 / 100;//5%的利息
@@ -93,8 +98,12 @@ public class Bank {
     }
 
     //调试的方法
-    public int getTheNumberOfUsers() {
+    public long getTheNumberOfUsers() {
         return isDebug?userModel.getUserMap().size():ERROR_NOT_IN_DEBUG;
+    }
+
+    public long getTheNumberOfNormalUsers(){
+        return isDebug?userModel.getTheNumberOfNormalUser():ERROR_NOT_IN_DEBUG;
     }
 
     public int listAllUsers(){
@@ -104,7 +113,8 @@ public class Bank {
         for (Map.Entry<String, User> entry : userModel.getUserMap().entrySet()) {
             String key = entry.getKey();
             User value = entry.getValue();
-            System.out.printf("用户名: %-30s   uid: %-20d  balance: %-20d%n", key, value.getUid(), value.getBalance());
+            System.out.printf("用户名: %-30s   uid: %-20d  balance: %-20d   state: %-10s%n",
+                    key, value.getUid(), value.getBalance(),value.getState()==User.USER_STATE_NORMAL?"normal":"deleted");
         }
 
         return SUCCESS;
@@ -117,6 +127,9 @@ public class Bank {
             if(findUserByName(name)==null){
                 userModel.getUserMap().put(name,new User(name, password));
                 //System.out.println("创建成功");
+                synchronized (userModel){
+                    userModel.setTheNumberOfNormalUser(userModel.getTheNumberOfNormalUser()+1);
+                }
                 return SUCCESS;
             }
 
@@ -137,9 +150,15 @@ public class Bank {
 
         if(name!=null && password!=null) {
             if(findUserByName(name)!=null){
-                //找到了该用户，匹配密码
-                if (userModel.getUserMap().get(name).matchPassword(password)) {
-                    currentUser = userModel.getUserMap().get(name);
+                //找到了该用户
+                User userToLogin=userModel.getUserMap().get(name);
+                //先看这个用户是否已经被删除
+                if(userToLogin.getState()==User.USER_STATE_DELETED){
+                    return ERROR_USER_DELETED;//用户已删除
+                }
+                //没被删除，再匹配密码
+                if (userToLogin.matchPassword(password)) {
+                    currentUser = userToLogin;
                     //System.out.println("登录成功");
                     return SUCCESS;
 
@@ -165,8 +184,14 @@ public class Bank {
     public int changePassword(String newPassword){
         if(newPassword!=null) {
             if (currentUser != null) {
-                currentUser.changePasswordInModel(newPassword);
-                return SUCCESS;//修改成功
+                synchronized (currentUser) {
+                    //先看这个用户是否已经被删除
+                    if (currentUser.getState() == User.USER_STATE_DELETED) {
+                        return ERROR_USER_DELETED;//用户已删除
+                    }
+                    currentUser.changePasswordInModel(newPassword);
+                    return SUCCESS;//修改成功
+                }
             }
             return ERROR_USER_NOT_LOGIN;//修改失败,未登录
         }
@@ -183,6 +208,10 @@ public class Bank {
     //存钱，传入的参数以分为单位，把小数化成整数是view层的职责
     public int deposit(long money){
         if(currentUser!=null){
+            //先看这个用户是否已经被删除
+            if(currentUser.getState()==User.USER_STATE_DELETED){
+                return ERROR_USER_DELETED;//用户已删除
+            }
             //对每个user的操作是互斥的，如果在对一个user存钱，那么就不能对这个user加利息或取钱
             synchronized(currentUser) {
                 if (money > 0) {
@@ -213,6 +242,10 @@ public class Bank {
     //取钱
     public int withdrawal(long money){
         if(currentUser!=null){
+            //先看这个用户是否已经被删除
+            if(currentUser.getState()==User.USER_STATE_DELETED){
+                return ERROR_USER_DELETED;//用户已删除
+            }
             //对每个user的操作是互斥的，如果在对一个user取钱，那么就不能对这个user存钱或加利息
             synchronized(currentUser) {
                 if (money > 0) {
@@ -236,7 +269,7 @@ public class Bank {
     //查询余额
     public long query() {
         if (currentUser != null) {
-
+            //用户已经删除也允许查询，因为删除的用户余额一定为0
             return currentUser.getBalance();
 
         }
@@ -244,6 +277,59 @@ public class Bank {
         //System.out.println("查询失败，用户未登录");
         return -1;//这里不能用ERROR_USER_NOT_LOGIN,会和正常余额冲突
     }
+
+    //修改用户名
+    public int changeUserName(String newUserName){
+        if(newUserName!=null) {
+            if (currentUser != null) {
+                synchronized (currentUser) {
+                    //先看这个用户是否已经被删除
+                    if (currentUser.getState() == User.USER_STATE_DELETED) {
+                        return ERROR_USER_DELETED;//用户已删除
+                    }
+                    if (findUserByName(newUserName) == null) {
+                        //因为系统把用户名作为键索引，要先改map中的键
+                        User value = userModel.getUserMap().remove(currentUser.getName());
+                        userModel.getUserMap().put(newUserName, value);
+                        value.changeUserNameInModel(newUserName);
+
+                        return SUCCESS;//修改成功
+                    }
+                    //System.out.println("修改失败，该用户名已被占用");
+                    return ERROR_USERNAME_EXIST;
+                }
+            }
+            return ERROR_USER_NOT_LOGIN;//修改失败,未登录
+        }
+        return ERROR_UNKNOWN;//修改失败，未知错误
+
+    }
+
+    //删除用户（逻辑删除）
+    public int deleteUser(){
+        if (currentUser != null) {
+            //先看这个用户是否已经被删除
+            if(currentUser.getState()==User.USER_STATE_DELETED){
+                return ERROR_USER_DELETED;//用户已删除
+            }
+            synchronized (currentUser) {
+                if(currentUser.getBalance() != 0){
+                    return ERROR_BALANCE_NOT_ZERO;//删除失败，余额不为0
+                }
+                currentUser.setState(User.USER_STATE_DELETED);
+                //为了不让被删除的用户占用用户名，还应该把map里的用户名键标记成已删除
+                User deletedUser = userModel.getUserMap().remove(currentUser.getName());
+                userModel.getUserMap().put("__deleted__"+deletedUser.getName(),deletedUser);
+                synchronized (userModel){
+                    userModel.setTheNumberOfNormalUser(userModel.getTheNumberOfNormalUser()-1);
+                }
+                return SUCCESS;//删除成功
+            }
+        }
+        return ERROR_USER_NOT_LOGIN;//删除失败,未登录
+
+    }
+
 
     //AES 要求密钥必须是 16 / 24 / 32 字节
     private static final String KEY =
@@ -283,6 +369,8 @@ public class Bank {
             //必须把 IV 写入文件,因为解密也需要同一个 IV,但 IV 不需要保密。
             //文件格式：[16字节IV][密文]
             fos.write(iv);
+            //存文件前保存当前uidAllocator
+            User.saveUidToModel(userModel);
             oos.writeObject(userModel);
 
             oos.close();//关闭最外层流，会自动级联关闭所有底层流
@@ -326,6 +414,9 @@ public class Bank {
             userModel = (UserModel) ois.readObject();
 
             ois.close();//关闭最外层流，会自动级联关闭所有底层流
+
+            //读取文件后恢复uidAllocator
+            User.loadUidFromModel(userModel);
 
         } catch (FileNotFoundException e) {
 

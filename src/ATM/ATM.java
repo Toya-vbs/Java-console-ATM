@@ -40,6 +40,9 @@ public class ATM {
                         case Bank.ERROR_USER_NOT_EXIST:
                             System.out.println("操作失败，用户不存在");
                             break;
+                        case Bank.ERROR_USER_DELETED:
+                            System.out.println("操作失败，用户已删除");
+                            break;
                         default:
                             System.out.println("操作失败，未知错误");
                     }
@@ -50,6 +53,13 @@ public class ATM {
                     String newName=sc.nextLine();
                     if (newName == null || newName.isBlank()) {
                         System.out.println("用户名不能为空或全空格,本次操作失败");
+                        break;
+                    } else if (newName.startsWith("__deleted__")) {
+                        //用户名不能以"__deleted__"开头,因为__deleted__是已删除的用户的键的前缀，
+                        //如果一个用户以__deleted__xxx作为用户名，当名为xxx的用户删除账号后，
+                        //会在map中插入一个键为__deleted__xxx的条目，这会覆盖之前以__deleted__xxx作为用户名的用户
+                        //因此用户名不能以"__deleted__"开头
+                        System.out.println("用户名不能以\"__deleted__\"开头,本次操作失败");
                         break;
                     }
                     System.out.print("输入密码: ");
@@ -81,7 +91,7 @@ public class ATM {
         while(true)
         {
             System.out.println("用户名："+bank.currentUser.getName()+"\nuid: "+bank.currentUser.getUid()+
-                    "\n请选择您要办理的业务:\n1: Change Password\n2: Query Balance\n3: Withdrawal\n4: Deposit\n5: Logout");
+                    "\n请选择您要办理的业务:\n1: Change Password\n2: Query Balance\n3: Withdrawal\n4: Deposit\n5: Logout\n6: Change User Name\n7: Delete User");
             String code=sc.nextLine().replaceAll("\\s", "");
             if(code.equals("5")){
                 System.out.println("登出成功");
@@ -96,6 +106,14 @@ public class ATM {
                     onWithdrawal();break;
                 case "4":
                     onDeposit();break;
+                case "6":
+                    onChangeUserName();break;
+                case "7":
+                    boolean deleted = onDeleteUser();
+                    if (deleted) {
+                        return; //删除成功，直接退出 menu2，回到一级菜单
+                    }
+                    break;
                 default:
                     System.out.println("无效的输入");
             }
@@ -106,7 +124,7 @@ public class ATM {
     private void debugMenu(){
         while(true)
         {
-            System.out.println("========调试模式========\n请选择:\n1: get the number of users\n2: list all users\n3. exit");
+            System.out.println("========调试模式========\n请选择:\n1: get the number of users\n2: list all users\n3: exit");
             String code=sc.nextLine().replaceAll("\\s", "");
             if(code.equals("3")){
                 bank.setDebug(false);
@@ -127,12 +145,13 @@ public class ATM {
 
     //调试方法
     public void onGetTheNumberOfUsers(){
-        int num=bank.getTheNumberOfUsers();
-        if(num==Bank.ERROR_NOT_IN_DEBUG){
+        long total = bank.getTheNumberOfUsers();
+        long normal = bank.getTheNumberOfNormalUsers();
+        if(total == Bank.ERROR_NOT_IN_DEBUG || normal == Bank.ERROR_NOT_IN_DEBUG){
             System.out.println("错误：当前不处于调试模式");
             return;
         }
-        System.out.println("当前共有 "+num+" 位用户\n");
+        System.out.println("当前共有 " + total + " 位用户, 其中状态为正常的用户有 " + normal + " 位\n");
     }
 
     public void onListAllUsers(){
@@ -158,9 +177,50 @@ public class ATM {
 
         switch(bank.changePassword(password1)){
             case Bank.SUCCESS -> System.out.println("修改密码成功");
+            case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除");
             default -> System.out.println("修改密码失败,未知错误");
         }
 
+
+    }
+
+    public void onChangeUserName(){
+        System.out.print("输入新用户名：");
+        String newName =sc.nextLine();
+        if (newName == null || newName.isBlank()) {
+            System.out.println("用户名不能为空或全空格,本次操作失败");
+            return;
+        }else if (newName.startsWith("__deleted__")) {
+            System.out.println("用户名不能以\"__deleted__\"开头,本次操作失败");
+            return;
+        }
+
+        switch(bank.changeUserName(newName)){
+            case Bank.SUCCESS -> System.out.println("修改用户名成功");
+            case Bank.ERROR_USERNAME_EXIST -> System.out.println("修改失败，该用户名已被占用");
+            case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除");
+            default -> System.out.println("修改用户名失败,未知错误");
+        }
+    }
+
+    //删除用户的方法，需要有返回值，因为menu2依靠这个返回值判断是否退出
+    public boolean onDeleteUser(){
+        System.out.println("确认要删除吗？(y/N)");
+        String response =sc.nextLine();
+        if(!response.equals("y")){
+            System.out.println("删除取消");
+            return false;
+        }
+        switch(bank.deleteUser()){
+            case Bank.SUCCESS -> {
+                System.out.println("用户已删除");
+                return true;
+            }
+            case Bank.ERROR_BALANCE_NOT_ZERO -> System.out.println("用户余额不为 0 . 00 元，删除失败");
+            case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除，请勿重复删除");
+            default -> System.out.println("删除失败，未知错误");
+        }
+        return false;
 
     }
 
@@ -265,6 +325,7 @@ public class ATM {
             case Bank.SUCCESS -> System.out.println("存入成功");
             case Bank.ERROR_BALANCE_OVERFLOW -> System.out.println("存入失败，存入金额过大，会使余额超出上限");
             case Bank.ERROR_AMOUNT_INVALID -> System.out.println("存入失败，输入金额非法");
+            case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除");
             case Bank.ERROR_USER_NOT_LOGIN -> System.out.println("存入失败，用户未登录");
             default -> System.out.println("存入失败，未知错误");
         }
@@ -335,6 +396,7 @@ public class ATM {
             case Bank.SUCCESS -> System.out.println("取出成功");
             case Bank.ERROR_BALANCE_INSUFFICIENT -> System.out.println("取出失败，余额不足");
             case Bank.ERROR_AMOUNT_INVALID -> System.out.println("取出失败，输入金额非法");
+            case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除");
             case Bank.ERROR_USER_NOT_LOGIN -> System.out.println("取出失败，用户未登录");
             default -> System.out.println("取出失败，未知错误");
         }
