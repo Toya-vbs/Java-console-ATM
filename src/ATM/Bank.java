@@ -181,15 +181,48 @@ public class Bank {
 
     }
 
-    public int changePassword(String newPassword){
-        if(newPassword!=null) {
-            if (currentUser != null) {
-                synchronized (currentUser) {
+    //匹配密码的方法，对于有些操作，需要在进行前再匹配一次密码以验证身份
+    public int matchPasswordAfterLogin(String inputPassword){
+        if(inputPassword!=null) {
+            User lockUser = currentUser;
+            if(lockUser!=null) {
+                synchronized (lockUser) {
                     //先看这个用户是否已经被删除
-                    if (currentUser.getState() == User.USER_STATE_DELETED) {
+                    if (lockUser.getState() == User.USER_STATE_DELETED) {
                         return ERROR_USER_DELETED;//用户已删除
                     }
-                    currentUser.changePasswordInModel(newPassword);
+                    //没被删除，再匹配密码
+                    if (lockUser.matchPassword(inputPassword)) {
+                        //System.out.println("匹配成功");
+                        return SUCCESS;
+
+                    }
+                    //System.out.println("密码错误，匹配失败");
+                    return ERROR_PASSWORD_WRONG;
+
+                }
+            }
+
+            //System.out.println("用户未登录，匹配失败");
+            return ERROR_USER_NOT_LOGIN;
+
+        }
+
+
+        //System.out.println("未知错误，匹配失败");
+        return ERROR_UNKNOWN;
+    }
+
+    public int changePassword(String newPassword){
+        if(newPassword!=null) {
+            User lockUser=currentUser;
+            if (lockUser != null) {
+                synchronized (lockUser) {
+                    //先看这个用户是否已经被删除
+                    if (lockUser.getState() == User.USER_STATE_DELETED) {
+                        return ERROR_USER_DELETED;//用户已删除
+                    }
+                    lockUser.changePasswordInModel(newPassword);
                     return SUCCESS;//修改成功
                 }
             }
@@ -201,25 +234,26 @@ public class Bank {
 
 
     //根据用户名查找用户是否存在，存在则返回用户对象，不存在则返回空指针
-    public User findUserByName(String name){
+    User findUserByName(String name){
             return userModel.getUserMap().get(name);// O(1) 复杂度
     }
 
     //存钱，传入的参数以分为单位，把小数化成整数是view层的职责
     public int deposit(long money){
-        if(currentUser!=null){
+        User lockUser=currentUser;
+        if(lockUser!=null){
             //先看这个用户是否已经被删除
-            if(currentUser.getState()==User.USER_STATE_DELETED){
+            if(lockUser.getState()==User.USER_STATE_DELETED){
                 return ERROR_USER_DELETED;//用户已删除
             }
             //对每个user的操作是互斥的，如果在对一个user存钱，那么就不能对这个user加利息或取钱
-            synchronized(currentUser) {
+            synchronized(lockUser) {
                 if (money > 0) {
                     //需要判断本次存款是否会让余额溢出
                     long tempBalance;
                     try {
                         // 先安全地相加
-                        tempBalance = Math.addExact(currentUser.getBalance(), money);
+                        tempBalance = Math.addExact(lockUser.getBalance(), money);
                         // 如果走到这里，说明没有溢出
                         //System.out.println("没有溢出，tempBalance = "+tempBalance);
                     } catch (ArithmeticException e) {
@@ -227,7 +261,7 @@ public class Bank {
                         return ERROR_BALANCE_OVERFLOW;
                     }
 
-                    currentUser.setBalance(tempBalance);
+                    lockUser.setBalance(tempBalance);
                     //System.out.println("存钱成功");
                     return SUCCESS;
                 }
@@ -241,16 +275,17 @@ public class Bank {
 
     //取钱
     public int withdrawal(long money){
-        if(currentUser!=null){
+        User lockUser=currentUser;
+        if(lockUser!=null){
             //先看这个用户是否已经被删除
-            if(currentUser.getState()==User.USER_STATE_DELETED){
+            if(lockUser.getState()==User.USER_STATE_DELETED){
                 return ERROR_USER_DELETED;//用户已删除
             }
             //对每个user的操作是互斥的，如果在对一个user取钱，那么就不能对这个user存钱或加利息
-            synchronized(currentUser) {
+            synchronized(lockUser) {
                 if (money > 0) {
-                    if (currentUser.getBalance() >= money) {
-                        currentUser.setBalance(currentUser.getBalance() - money);
+                    if (lockUser.getBalance() >= money) {
+                        lockUser.setBalance(lockUser.getBalance() - money);
                         //System.out.println("取钱成功");
                         return SUCCESS;
                     }
@@ -281,17 +316,19 @@ public class Bank {
     //修改用户名
     public int changeUserName(String newUserName){
         if(newUserName!=null) {
-            if (currentUser != null) {
-                synchronized (currentUser) {
+            User lockUser=currentUser;
+            if (lockUser != null) {
+                synchronized (lockUser) {
                     //先看这个用户是否已经被删除
-                    if (currentUser.getState() == User.USER_STATE_DELETED) {
+                    if (lockUser.getState() == User.USER_STATE_DELETED) {
                         return ERROR_USER_DELETED;//用户已删除
                     }
                     if (findUserByName(newUserName) == null) {
                         //因为系统把用户名作为键索引，要先改map中的键
-                        User value = userModel.getUserMap().remove(currentUser.getName());
+                        User value = userModel.getUserMap().remove(lockUser.getName());
                         userModel.getUserMap().put(newUserName, value);
-                        value.changeUserNameInModel(newUserName);
+                        //再改User实例的name字段
+                        value.setName(newUserName);
 
                         return SUCCESS;//修改成功
                     }
@@ -307,19 +344,20 @@ public class Bank {
 
     //删除用户（逻辑删除）
     public int deleteUser(){
-        if (currentUser != null) {
+        User lockUser=currentUser;
+        if (lockUser != null) {
             //先看这个用户是否已经被删除
-            if(currentUser.getState()==User.USER_STATE_DELETED){
+            if(lockUser.getState()==User.USER_STATE_DELETED){
                 return ERROR_USER_DELETED;//用户已删除
             }
-            synchronized (currentUser) {
-                if(currentUser.getBalance() != 0){
+            synchronized (lockUser) {
+                if(lockUser.getBalance() != 0){
                     return ERROR_BALANCE_NOT_ZERO;//删除失败，余额不为0
                 }
-                currentUser.setState(User.USER_STATE_DELETED);
+                lockUser.setState(User.USER_STATE_DELETED);
                 //为了不让被删除的用户占用用户名，还应该把map里的用户名键标记成已删除
-                User deletedUser = userModel.getUserMap().remove(currentUser.getName());
-                userModel.getUserMap().put("__deleted__"+deletedUser.getName(),deletedUser);
+                User deletedUser = userModel.getUserMap().remove(lockUser.getName());
+                userModel.getUserMap().put("__deleted_uid__"+deletedUser.getUid(),deletedUser);
                 synchronized (userModel){
                     userModel.setTheNumberOfNormalUser(userModel.getTheNumberOfNormalUser()-1);
                 }

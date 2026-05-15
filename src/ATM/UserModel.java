@@ -37,7 +37,7 @@ class User implements Serializable {
     private String passwordHashCode;
 
     //想要保证密码安全就要加盐
-    private byte[] salt;
+    private final byte[] salt;
 
     //用户名
     private String name;
@@ -56,7 +56,7 @@ class User implements Serializable {
     }
 
     //用户uid，一个用户的历史永久身份，注销后也永远不能复用
-    private long uid;
+    private final long uid;
 
 
 
@@ -73,10 +73,6 @@ class User implements Serializable {
         //但是本程序只有两个线程，一个操作，一个只加利息，因此没关系
         uid=uidAllocator;
         uidAllocator+=1;
-    }
-    //用于改用户名
-    public void changeUserNameInModel(String newUserName){
-        this.name=newUserName;
     }
 
     //用于改密码
@@ -129,7 +125,7 @@ class User implements Serializable {
         this.name = name;
     }
 
-    public String getPasswordHashCode() {return passwordHashCode;}
+
 
     public long getBalance() {return balance;}
 
@@ -137,15 +133,8 @@ class User implements Serializable {
         this.balance = balance;
     }
 
-    public static long getUidAllocator() {
-        return uidAllocator;
-    }
 
 
-    //uidAllocater的setter应该仅在读取文件中uidAllocater时使用
-    public static void setUidAllocator(long uidAllocator) {
-        User.uidAllocator = uidAllocator;
-    }
 
     public long getUid() {
         return uid;
@@ -160,16 +149,13 @@ class User implements Serializable {
 public class UserModel implements Serializable{
 
     // Key 是用户名 (String)，Value 是用户对象 (User)
-    private Map<String, User> userMap = new ConcurrentHashMap<>();//使用多线程安全的ConcurrentHashMap
+    private final Map<String, User> userMap = new ConcurrentHashMap<>();//使用多线程安全的ConcurrentHashMap
 
     //userMap的getter和setter
     public Map<String, User> getUserMap() {
         return userMap;
     }
 
-    public void setUserMap(Map<String, User> userMap) {
-        this.userMap = userMap;
-    }
 
     @Serial
     private static final long serialVersionUID = 1L;//序列化版本号

@@ -54,12 +54,12 @@ public class ATM {
                     if (newName == null || newName.isBlank()) {
                         System.out.println("用户名不能为空或全空格,本次操作失败");
                         break;
-                    } else if (newName.startsWith("__deleted__")) {
-                        //用户名不能以"__deleted__"开头,因为__deleted__是已删除的用户的键的前缀，
-                        //如果一个用户以__deleted__xxx作为用户名，当名为xxx的用户删除账号后，
-                        //会在map中插入一个键为__deleted__xxx的条目，这会覆盖之前以__deleted__xxx作为用户名的用户
-                        //因此用户名不能以"__deleted__"开头
-                        System.out.println("用户名不能以\"__deleted__\"开头,本次操作失败");
+                    } else if (newName.startsWith("__deleted_uid__")) {
+                        //用户名不能以"__deleted_uid__"开头,因为__deleted_uid__是已删除的用户的键的前缀，
+                        //如果一个用户以__deleted_uid__xxx作为用户名，当uid是xxx的用户删除账号后，
+                        //会在map中插入一个键为__deleted_uid__xxx的条目，这会覆盖之前以__deleted_uid__xxx作为用户名的用户
+                        //因此用户名不能以"__deleted_uid__"开头
+                        System.out.println("用户名不能以\"__deleted_uid__\"开头,本次操作失败");
                         break;
                     }
                     System.out.print("输入密码: ");
@@ -157,11 +157,28 @@ public class ATM {
     public void onListAllUsers(){
         if(bank.listAllUsers()==Bank.ERROR_NOT_IN_DEBUG){
             System.out.println("错误：当前不处于调试模式");
-            return;
         }
     }
 
     public void onChangePassword(){
+        System.out.print("输入原密码：");
+        String oldPassword=sc.nextLine();
+        switch(bank.matchPasswordAfterLogin(oldPassword)){
+            case Bank.SUCCESS -> {}
+            case Bank.ERROR_USER_DELETED ->{
+                System.out.println("用户已删除，操作失败");
+                return;
+            }
+            case Bank.ERROR_PASSWORD_WRONG -> {
+                System.out.println("密码错误，操作失败");
+                return;
+            }
+            default -> {
+                System.out.println("未知错误，操作失败");
+                return;
+            }
+
+        }
         System.out.print("输入新密码：");
         String password1=sc.nextLine();
         if (password1 == null || password1.isBlank()) {
@@ -190,8 +207,8 @@ public class ATM {
         if (newName == null || newName.isBlank()) {
             System.out.println("用户名不能为空或全空格,本次操作失败");
             return;
-        }else if (newName.startsWith("__deleted__")) {
-            System.out.println("用户名不能以\"__deleted__\"开头,本次操作失败");
+        }else if (newName.startsWith("__deleted_uid__")) {
+            System.out.println("用户名不能以\"__deleted_uid__\"开头,本次操作失败");
             return;
         }
 
@@ -205,6 +222,25 @@ public class ATM {
 
     //删除用户的方法，需要有返回值，因为menu2依靠这个返回值判断是否退出
     public boolean onDeleteUser(){
+        System.out.print("输入密码：");
+        String oldPassword=sc.nextLine();
+        switch(bank.matchPasswordAfterLogin(oldPassword)){
+            case Bank.SUCCESS -> {}
+            case Bank.ERROR_USER_DELETED ->{
+                System.out.println("用户已删除，请勿重复删除");
+                return false;
+            }
+            case Bank.ERROR_PASSWORD_WRONG -> {
+                System.out.println("密码错误，操作失败");
+                return false;
+            }
+            default -> {
+                System.out.println("未知错误，操作失败");
+                return false;
+            }
+
+        }
+
         System.out.println("确认要删除吗？(y/N)");
         String response =sc.nextLine();
         if(!response.equals("y")){
@@ -308,7 +344,7 @@ public class ATM {
             // 1. 先安全地计算 integerPart * 100
             long temp = Math.multiplyExact(integerPart, 100L);
             // 2. 再安全地加上 decimalPart
-            balanceIncrement = Math.addExact(temp, (long)decimalPart);
+            balanceIncrement = Math.addExact(temp, decimalPart);
 
             // 如果走到这里，说明没有溢出
         } catch (ArithmeticException e) {
@@ -379,7 +415,7 @@ public class ATM {
             // 1. 先安全地计算 integerPart * 100
             long temp = Math.multiplyExact(integerPart, 100L);
             // 2. 再安全地加上 decimalPart
-            withdrawMoney = Math.addExact(temp, (long)decimalPart);
+            withdrawMoney = Math.addExact(temp, decimalPart);
 
             // 如果走到这里，说明没有溢出
         } catch (ArithmeticException e) {
