@@ -17,17 +17,19 @@ import java.util.concurrent.TimeUnit;
 public class Bank {
     //定义常量错误码
     public static final int SUCCESS = 0;                        // 成功
-    public static final int ERROR_UNKNOWN = -1;                 // 未知错误
     public static final int ERROR_PASSWORD_WRONG = 1;           // 密码错误
     public static final int ERROR_USERNAME_EXIST = 2;           // 用户名已存在
     public static final int ERROR_USER_NOT_EXIST = 3;           // 用户不存在
-    public static final int ERROR_USER_NOT_LOGIN = 4;           // 用户未登录
-    public static final int ERROR_AMOUNT_INVALID = 5;           // 金额非法
-    public static final int ERROR_BALANCE_INSUFFICIENT = 6;     // 余额不足
-    public static final int ERROR_BALANCE_OVERFLOW = 7;         // 余额溢出
-    public static final int ERROR_BALANCE_NOT_ZERO = 8;         // 余额不为0
-    public static final int ERROR_USER_DELETED = 9;             // 用户状态处于删除
-    public static final int ERROR_NOT_IN_DEBUG = -2;            // 不处于调试模式
+    public static final int ERROR_AMOUNT_INVALID = 4;           // 金额非法
+    public static final int ERROR_BALANCE_INSUFFICIENT = 5;     // 余额不足
+    public static final int ERROR_BALANCE_OVERFLOW = 6;         // 余额溢出
+    public static final int ERROR_BALANCE_NOT_ZERO = 7;         // 余额不为0
+    public static final int ERROR_USER_DELETED = 8;             // 用户状态处于删除
+    public static final int ERROR_USERNAME_SAME = 9;            // 新用户名和旧用户名相同
+    public static final int ERROR_PASSWORD_SAME = 10;           // 新密码和旧密码相同
+    public static final int ERROR_UNKNOWN = -1;                 // 未知错误
+    public static final int ERROR_USER_NOT_LOGIN = -2;          // 用户未登录
+    public static final int ERROR_NOT_IN_DEBUG = -3;            // 不处于调试模式
 
     private  boolean isDebug = false;//是否处于调试模式的状态位，true则处于调试模式
     public void setDebug(boolean debug) {
@@ -113,8 +115,8 @@ public class Bank {
         for (Map.Entry<String, User> entry : userModel.getUserMap().entrySet()) {
             String key = entry.getKey();
             User value = entry.getValue();
-            System.out.printf("用户名: %-30s   uid: %-20d  balance: %-20d   state: %-10s%n",
-                    key, value.getUid(), value.getBalance(),value.getState()==User.USER_STATE_NORMAL?"normal":"deleted");
+            System.out.printf("KEY: %-30s    USER NAME: %-30s    UID: %-20d    BALANCE: %-20d    STATE: %-10s%n",
+                    key, value.getName(), value.getUid(), value.getBalance(),value.getState()==User.USER_STATE_NORMAL?"Normal":"Deleted");
         }
 
         return SUCCESS;
@@ -222,6 +224,10 @@ public class Bank {
                     if (lockUser.getState() == User.USER_STATE_DELETED) {
                         return ERROR_USER_DELETED;//用户已删除
                     }
+                    //检查新密码是否和旧密码相同
+                    if(lockUser.matchPassword(newPassword)){
+                        return ERROR_PASSWORD_SAME;
+                    }
                     lockUser.changePasswordInModel(newPassword);
                     return SUCCESS;//修改成功
                 }
@@ -310,7 +316,7 @@ public class Bank {
         }
 
         //System.out.println("查询失败，用户未登录");
-        return -1;//这里不能用ERROR_USER_NOT_LOGIN,会和正常余额冲突
+        return ERROR_USER_NOT_LOGIN;
     }
 
     //修改用户名
@@ -322,6 +328,10 @@ public class Bank {
                     //先看这个用户是否已经被删除
                     if (lockUser.getState() == User.USER_STATE_DELETED) {
                         return ERROR_USER_DELETED;//用户已删除
+                    }
+                    //检查新用户名是否和旧用户名相同
+                    if(newUserName.equals(lockUser.getName())){
+                        return ERROR_USERNAME_SAME;
                     }
                     if (findUserByName(newUserName) == null) {
                         //因为系统把用户名作为键索引，要先改map中的键

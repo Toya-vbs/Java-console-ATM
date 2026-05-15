@@ -17,7 +17,7 @@ public class ATM {
     //登陆前的一级菜单
     public void menu1(){
         while(true){
-            System.out.println("========欢迎========\n1：Login\n2：Create a new user\n3：Exit");
+            System.out.println("========欢迎========\n1: Login\n2: Create a new user\n3: Exit");
             String code=sc.nextLine().replaceAll("\\s", "");
             if(code.equals("3")){
                 break;
@@ -194,6 +194,7 @@ public class ATM {
 
         switch(bank.changePassword(password1)){
             case Bank.SUCCESS -> System.out.println("修改密码成功");
+            case Bank.ERROR_PASSWORD_SAME -> System.out.println("修改失败，新密码不能和旧密码相同");
             case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除");
             default -> System.out.println("修改密码失败,未知错误");
         }
@@ -214,6 +215,7 @@ public class ATM {
 
         switch(bank.changeUserName(newName)){
             case Bank.SUCCESS -> System.out.println("修改用户名成功");
+            case Bank.ERROR_USERNAME_SAME -> System.out.println("修改失败，新用户名不能和旧用户名相同");
             case Bank.ERROR_USERNAME_EXIST -> System.out.println("修改失败，该用户名已被占用");
             case Bank.ERROR_USER_DELETED -> System.out.println("操作失败，用户已删除");
             default -> System.out.println("修改用户名失败,未知错误");
@@ -262,7 +264,7 @@ public class ATM {
 
     public void onQuery(){
         long currentBalance=bank.query();
-        if(currentBalance==-1){
+        if(currentBalance==Bank.ERROR_USER_NOT_LOGIN){
             System.out.println("用户未登录");
         }
         int decimalPart=(int)(currentBalance%100);//必须要先运算再转化成int类型，否则(int)转化优先级更高可能会导致溢出
